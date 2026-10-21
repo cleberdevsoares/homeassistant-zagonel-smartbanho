@@ -1,0 +1,180 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Conta do app Smart Banho",
+        "description": "Use o mesmo e-mail e senha do aplicativo Zagonel Smart Banho.",
+        "data": {
+          "email": "E-mail",
+          "password": "Senha"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Senha da Zagonel",
+        "description": "A senha de {email} não é mais aceita. Digite a senha atual do app.",
+        "data": {
+          "password": "Senha"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "E-mail ou senha inválidos",
+      "cannot_connect": "Não foi possível falar com o servidor da Zagonel",
+      "no_showers": "Nenhum chuveiro cadastrado nesta conta"
+    },
+    "abort": {
+      "already_configured": "Esta conta já está configurada",
+      "reauth_successful": "Senha atualizada",
+      "unique_id_mismatch": "Esta senha é de outra conta"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "running": {
+        "name": "Chuveiro ligado"
+      },
+      "connected": {
+        "name": "Conectado à Zagonel"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Atualizar agora"
+      }
+    },
+    "light": {
+      "led": {
+        "name": "LED"
+      }
+    },
+    "number": {
+      "preset_1": {
+        "name": "Preset 1"
+      },
+      "preset_2": {
+        "name": "Preset 2"
+      },
+      "preset_3": {
+        "name": "Preset 3"
+      },
+      "preset_4": {
+        "name": "Preset 4"
+      },
+      "parental_limit": {
+        "name": "Limite do controle dos pais"
+      },
+      "buzzer_volume": {
+        "name": "Volume do som"
+      }
+    },
+    "sensor": {
+      "outlet_temperature": {
+        "name": "Temperatura da água"
+      },
+      "inlet_temperature": {
+        "name": "Temperatura de entrada"
+      },
+      "target_temperature": {
+        "name": "Temperatura alvo"
+      },
+      "flow": {
+        "name": "Vazão"
+      },
+      "power": {
+        "name": "Potência"
+      },
+      "voltage": {
+        "name": "Tensão"
+      },
+      "wifi_signal": {
+        "name": "Sinal Wi-Fi"
+      },
+      "last_start": {
+        "name": "Último banho"
+      },
+      "last_duration": {
+        "name": "Último banho - duração"
+      },
+      "last_water": {
+        "name": "Último banho - água"
+      },
+      "last_energy": {
+        "name": "Último banho - energia"
+      },
+      "last_cost": {
+        "name": "Último banho - custo"
+      },
+      "last_temperature": {
+        "name": "Último banho - temperatura média"
+      },
+      "last_flow": {
+        "name": "Último banho - vazão média"
+      },
+      "last_power": {
+        "name": "Último banho - potência média"
+      },
+      "today_count": {
+        "name": "Banhos hoje"
+      },
+      "today_water": {
+        "name": "Água hoje"
+      },
+      "today_energy": {
+        "name": "Energia hoje"
+      },
+      "today_cost": {
+        "name": "Custo hoje"
+      },
+      "today_duration": {
+        "name": "Tempo de banho hoje"
+      },
+      "month_count": {
+        "name": "Banhos no mês"
+      },
+      "month_water": {
+        "name": "Água no mês"
+      },
+      "month_energy": {
+        "name": "Energia no mês"
+      },
+      "month_cost": {
+        "name": "Custo no mês"
+      },
+      "month_duration": {
+        "name": "Tempo de banho no mês"
+      },
+      "firmware": {
+        "name": "Firmware"
+      },
+      "wifi_ssid": {
+        "name": "Rede Wi-Fi"
+      }
+    },
+    "select": {
+      "control_mode": {
+        "name": "Modo de controle",
+        "state": {
+          "manual": "Manual",
+          "automatic": "Automático"
+        }
+      },
+      "led_mode": {
+        "name": "Modo do LED",
+        "state": {
+          "power": "Pela potência",
+          "temperature": "Pela temperatura",
+          "fixed": "Cor fixa"
+        }
+      },
+      "parental_mode": {
+        "name": "Controle dos pais",
+        "state": {
+          "off": "Desligado",
+          "sound": "Aviso sonoro",
+          "shutdown": "Desliga o chuveiro",
+          "sound_and_shutdown": "Aviso sonoro e desliga"
+        }
+      }
+    }
+  }
+}

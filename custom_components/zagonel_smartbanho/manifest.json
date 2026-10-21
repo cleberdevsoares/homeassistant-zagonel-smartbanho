@@ -1,0 +1,13 @@
+{
+  "domain": "zagonel_smartbanho",
+  "name": "Zagonel Smart Banho",
+  "codeowners": ["@cleberdevsoares"],
+  "config_flow": true,
+  "documentation": "https://github.com/cleberdevsoares/homeassistant-zagonel-smartbanho",
+  "integration_type": "hub",
+  "iot_class": "cloud_push",
+  "issue_tracker": "https://github.com/cleberdevsoares/homeassistant-zagonel-smartbanho/issues",
+  "loggers": ["custom_components.zagonel_smartbanho"],
+  "requirements": ["paho-mqtt>=1.6.1"],
+  "version": "1.0.0"
+}

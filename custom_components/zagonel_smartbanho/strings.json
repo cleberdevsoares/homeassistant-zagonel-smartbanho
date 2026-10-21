@@ -1,0 +1,180 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Smart Banho app account",
+        "description": "Use the same e-mail and password as the Zagonel Smart Banho app.",
+        "data": {
+          "email": "E-mail",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Zagonel password",
+        "description": "The password for {email} is no longer accepted. Enter the current app password.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid e-mail or password",
+      "cannot_connect": "Could not reach the Zagonel server",
+      "no_showers": "No shower registered on this account"
+    },
+    "abort": {
+      "already_configured": "This account is already configured",
+      "reauth_successful": "Password updated",
+      "unique_id_mismatch": "This password belongs to another account"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "running": {
+        "name": "Shower running"
+      },
+      "connected": {
+        "name": "Connected to Zagonel"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Refresh now"
+      }
+    },
+    "light": {
+      "led": {
+        "name": "LED"
+      }
+    },
+    "number": {
+      "preset_1": {
+        "name": "Preset 1"
+      },
+      "preset_2": {
+        "name": "Preset 2"
+      },
+      "preset_3": {
+        "name": "Preset 3"
+      },
+      "preset_4": {
+        "name": "Preset 4"
+      },
+      "parental_limit": {
+        "name": "Parental limit"
+      },
+      "buzzer_volume": {
+        "name": "Buzzer volume"
+      }
+    },
+    "sensor": {
+      "outlet_temperature": {
+        "name": "Outlet temperature"
+      },
+      "inlet_temperature": {
+        "name": "Inlet temperature"
+      },
+      "target_temperature": {
+        "name": "Target temperature"
+      },
+      "flow": {
+        "name": "Flow"
+      },
+      "power": {
+        "name": "Power"
+      },
+      "voltage": {
+        "name": "Voltage"
+      },
+      "wifi_signal": {
+        "name": "Wi-Fi signal"
+      },
+      "last_start": {
+        "name": "Last shower"
+      },
+      "last_duration": {
+        "name": "Last shower duration"
+      },
+      "last_water": {
+        "name": "Last shower water"
+      },
+      "last_energy": {
+        "name": "Last shower energy"
+      },
+      "last_cost": {
+        "name": "Last shower cost"
+      },
+      "last_temperature": {
+        "name": "Last shower average temperature"
+      },
+      "last_flow": {
+        "name": "Last shower average flow"
+      },
+      "last_power": {
+        "name": "Last shower average power"
+      },
+      "today_count": {
+        "name": "Showers today"
+      },
+      "today_water": {
+        "name": "Water today"
+      },
+      "today_energy": {
+        "name": "Energy today"
+      },
+      "today_cost": {
+        "name": "Cost today"
+      },
+      "today_duration": {
+        "name": "Shower time today"
+      },
+      "month_count": {
+        "name": "Showers this month"
+      },
+      "month_water": {
+        "name": "Water this month"
+      },
+      "month_energy": {
+        "name": "Energy this month"
+      },
+      "month_cost": {
+        "name": "Cost this month"
+      },
+      "month_duration": {
+        "name": "Shower time this month"
+      },
+      "firmware": {
+        "name": "Firmware"
+      },
+      "wifi_ssid": {
+        "name": "Wi-Fi network"
+      }
+    },
+    "select": {
+      "control_mode": {
+        "name": "Control mode",
+        "state": {
+          "manual": "Manual",
+          "automatic": "Automatic"
+        }
+      },
+      "led_mode": {
+        "name": "LED mode",
+        "state": {
+          "power": "By power",
+          "temperature": "By temperature",
+          "fixed": "Fixed color"
+        }
+      },
+      "parental_mode": {
+        "name": "Parental control",
+        "state": {
+          "off": "Off",
+          "sound": "Sound alert",
+          "shutdown": "Shut down",
+          "sound_and_shutdown": "Sound and shut down"
+        }
+      }
+    }
+  }
+}
