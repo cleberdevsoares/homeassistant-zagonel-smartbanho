@@ -230,6 +230,10 @@
         "device_id": {
           "name": "Chuveiro",
           "description": "Opcional: o chuveiro, se tiver mais de um."
+        },
+        "banho_id": {
+          "name": "ID do banho",
+          "description": "Opcional: corrige um banho específico (ex.: um banho da madrugada)."
         }
       }
     }

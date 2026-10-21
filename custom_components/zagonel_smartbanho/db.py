@@ -125,6 +125,12 @@ class BanhoDB:
                 (morador, humor or None, measure_id),
             )
 
+    def resident_of(self, measure_id: str) -> tuple[str | None, str | None]:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT morador, humor FROM banhos WHERE id = %s", (measure_id,))
+            row = cur.fetchone()
+            return (row[0], row[1]) if row else (None, None)
+
     def month_totals(self, shower_id: str, month_start: datetime) -> dict[str, dict[str, float]]:
         with self._connect() as conn, conn.cursor() as cur:
             cur.execute(

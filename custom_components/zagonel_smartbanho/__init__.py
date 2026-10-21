@@ -26,6 +26,7 @@ SET_RESIDENT_SCHEMA = vol.Schema(
         vol.Optional("morador"): cv.string,
         vol.Optional("humor"): cv.string,
         vol.Optional("device_id"): cv.string,
+        vol.Optional("banho_id"): cv.string,
     }
 )
 
@@ -36,6 +37,14 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         mood = call.data.get("humor")
         if not resident and not mood:
             raise ServiceValidationError("Informe o morador e/ou o humor")
+        if measure_id := call.data.get("banho_id"):
+            if not resident:
+                raise ServiceValidationError("Para corrigir um banho pelo ID, informe o morador")
+            for entry in hass.config_entries.async_entries(DOMAIN):
+                if entry.state is ConfigEntryState.LOADED:
+                    await entry.runtime_data.async_set_resident_for(measure_id, resident, mood)
+                    return
+            raise ServiceValidationError("Integração Zagonel Smart Banho não carregada")
         shower_id = None
         if device_id := call.data.get("device_id"):
             device = dr.async_get(hass).async_get(device_id)

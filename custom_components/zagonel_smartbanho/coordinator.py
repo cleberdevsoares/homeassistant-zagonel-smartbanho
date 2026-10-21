@@ -255,6 +255,10 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
                 await self.hass.async_add_executor_job(self.db.upsert_with_resident, row)
                 self._queue.remove(row)
             await self.hass.async_add_executor_job(self.db.insert_ignore, rows)
+            if shower.last_resident is None and shower.last_measure is not None:
+                shower.last_resident, shower.last_mood = await self.hass.async_add_executor_job(
+                    self.db.resident_of, shower.last_measure.id
+                )
             if shower.month_start is not None:
                 shower.residents_month = await self.hass.async_add_executor_job(
                     self.db.month_totals, shower.device_id, shower.month_start
@@ -278,6 +282,27 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
         raise ServiceValidationError(
             f"Morador '{name}' não está cadastrado. Cadastrados: {', '.join(self.residents)}"
         )
+
+    async def async_set_resident_for(self, measure_id: str, resident: str, mood: str | None) -> None:
+        resident = self.canonical_resident(resident)
+        mood = mood.strip().lower() if mood else None
+        if self.db is None:
+            raise HomeAssistantError("O banco de banhos não está configurado nas opções da integração")
+        try:
+            changed = await self.hass.async_add_executor_job(self.db.set_resident, measure_id, resident, mood)
+            for shower in self.showers.values():
+                if shower.last_measure is not None and shower.last_measure.id == measure_id:
+                    shower.last_resident = resident
+                    shower.last_mood = mood or shower.last_mood
+                if shower.month_start is not None:
+                    shower.residents_month = await self.hass.async_add_executor_job(
+                        self.db.month_totals, shower.device_id, shower.month_start
+                    )
+        except pymysql.Error as err:
+            raise HomeAssistantError(f"Falha ao gravar no banco de banhos: {err}") from err
+        if not changed:
+            LOGGER.warning("Banho %s não encontrado no banco (ou já estava com %s)", measure_id, resident)
+        self.async_update_listeners()
 
     async def async_set_resident(self, shower_id: str | None, resident: str | None, mood: str | None) -> None:
         resident = self.canonical_resident(resident) if resident else None

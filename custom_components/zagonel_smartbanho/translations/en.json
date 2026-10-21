@@ -230,6 +230,10 @@
         "device_id": {
           "name": "Shower",
           "description": "Optional: the shower, if there is more than one."
+        },
+        "banho_id": {
+          "name": "Shower ID",
+          "description": "Optional: fixes a specific shower (e.g. a late-night one)."
         }
       }
     }

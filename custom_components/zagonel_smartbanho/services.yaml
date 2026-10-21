@@ -8,6 +8,10 @@ definir_morador:
       example: bom
       selector:
         text:
+    banho_id:
+      example: 6ad90dd4248e0a03c29e5f0f
+      selector:
+        text:
     device_id:
       selector:
         device:
