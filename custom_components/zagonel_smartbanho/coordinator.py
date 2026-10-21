@@ -10,7 +10,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
-from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -19,6 +19,7 @@ from .const import (
     DOMAIN,
     EVENT_SHOWER_FINISHED,
     EVENT_SHOWER_STARTED,
+    LIVE_POLL_SECONDS,
     LOGGER,
     MEASURE_FETCH_DELAYS,
     POLL_INTERVAL_MINUTES,
@@ -92,6 +93,7 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
         self.showers: dict[str, Shower] = {}
         self._off_timers: dict[str, CALLBACK_TYPE] = {}
         self._fetch_timers: list[CALLBACK_TYPE] = []
+        self._live_poll: CALLBACK_TYPE | None = None
 
     async def async_setup(self) -> None:
         try:
@@ -117,8 +119,19 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
     async def async_start_push(self) -> None:
         if self.mqtt is not None:
             await self.mqtt.async_start()
+            self._live_poll = async_track_time_interval(
+                self.hass, self._poll_live_status, timedelta(seconds=LIVE_POLL_SECONDS)
+            )
+
+    @callback
+    def _poll_live_status(self, _now: datetime) -> None:
+        if self.mqtt is not None and self.mqtt_connected:
+            self.mqtt.request_chars()
 
     async def async_shutdown(self) -> None:
+        if self._live_poll is not None:
+            self._live_poll()
+            self._live_poll = None
         for cancel in [*self._off_timers.values(), *self._fetch_timers]:
             cancel()
         self._off_timers.clear()

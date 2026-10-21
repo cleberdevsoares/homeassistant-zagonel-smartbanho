@@ -82,6 +82,7 @@ automation:
 
 ## Observações
 
-- O chuveiro não manda aviso de "desliguei": ele é considerado desligado 30 segundos depois do último status.
+- O chuveiro só manda o status ao vivo quando alguém pede; a integração pede a cada 15 segundos (como o app). Por isso o "ligado" aparece em até ~15 s depois de abrir a água.
+- O chuveiro não manda aviso de "desliguei": ele é considerado desligado 40 segundos depois do último status.
 - Com o chuveiro ligado, os controles ficam indisponíveis, porque o aparelho ignora alterações durante o banho. A temperatura nova vale a partir do próximo banho.
 - Os nomes das entidades seguem o idioma do Home Assistant (português ou inglês).
