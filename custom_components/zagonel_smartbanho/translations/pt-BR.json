@@ -148,6 +148,24 @@
       },
       "wifi_ssid": {
         "name": "Rede Wi-Fi"
+      },
+      "last_resident": {
+        "name": "Morador do último banho"
+      },
+      "resident_count": {
+        "name": "Banhos no mês - {morador}"
+      },
+      "resident_duration": {
+        "name": "Tempo de banho no mês - {morador}"
+      },
+      "resident_water": {
+        "name": "Água no mês - {morador}"
+      },
+      "resident_energy": {
+        "name": "Energia no mês - {morador}"
+      },
+      "resident_cost": {
+        "name": "Custo no mês - {morador}"
       }
     },
     "select": {
@@ -173,6 +191,45 @@
           "sound": "Aviso sonoro",
           "shutdown": "Desliga o chuveiro",
           "sound_and_shutdown": "Aviso sonoro e desliga"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Moradores e banco de dados",
+        "description": "Moradores separados por vírgula (Visitante entra sozinho). O banco MariaDB/MySQL é opcional: com ele cada banho fica gravado com o morador.",
+        "data": {
+          "moradores": "Moradores",
+          "db_host": "Servidor do banco (IP)",
+          "db_port": "Porta",
+          "db_name": "Nome do banco",
+          "db_user": "Usuário",
+          "db_password": "Senha (deixe vazio para manter)"
+        }
+      }
+    },
+    "error": {
+      "db_cannot_connect": "Não foi possível conectar no banco. Confira servidor, usuário e senha."
+    }
+  },
+  "services": {
+    "definir_morador": {
+      "name": "Definir morador do banho",
+      "description": "Informa quem está tomando banho (ou quem tomou o último) e, opcionalmente, como foi o dia.",
+      "fields": {
+        "morador": {
+          "name": "Morador",
+          "description": "Nome cadastrado nas opções da integração, ou Visitante."
+        },
+        "humor": {
+          "name": "Humor",
+          "description": "Como foi o dia (bom, cansativo, ruim)."
+        },
+        "device_id": {
+          "name": "Chuveiro",
+          "description": "Opcional: o chuveiro, se tiver mais de um."
         }
       }
     }

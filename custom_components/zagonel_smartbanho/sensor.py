@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
+import unicodedata
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -28,6 +29,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import ZagonelConfigEntry
+from .const import UNIDENTIFIED
 from .coordinator import Shower
 from .entity import ZagonelEntity
 
@@ -212,11 +214,72 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ZagonelConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     coordinator = entry.runtime_data
-    async_add_entities(
+    entities: list[SensorEntity] = [
         ZagonelSensor(coordinator, shower, description)
         for shower in coordinator.showers.values()
         for description in SENSORS
-    )
+    ]
+    for shower in coordinator.showers.values():
+        entities.append(ZagonelSensor(coordinator, shower, LAST_RESIDENT))
+        if coordinator.db is not None:
+            for resident in [*coordinator.residents, UNIDENTIFIED]:
+                entities.extend(
+                    ZagonelResidentSensor(coordinator, shower, resident, description)
+                    for description in RESIDENT_SENSORS
+                )
+    async_add_entities(entities)
+
+
+LAST_RESIDENT = ZagonelSensorDescription(
+    key="last_resident",
+    value_fn=lambda s: s.last_resident or (UNIDENTIFIED if s.last_measure else None),
+    attrs_fn=lambda s: {"humor": s.last_mood, "morador_pendente": s.pending_resident, "humor_pendente": s.pending_mood},
+)
+
+
+@dataclass(frozen=True, kw_only=True)
+class ZagonelResidentDescription(SensorEntityDescription):
+    metric: str
+    scale: float = 1
+
+
+RESIDENT_SENSORS: tuple[ZagonelResidentDescription, ...] = (
+    ZagonelResidentDescription(key="resident_count", metric="count", state_class=SensorStateClass.TOTAL),
+    ZagonelResidentDescription(key="resident_duration", metric="duration_s", **DURATION),
+    ZagonelResidentDescription(key="resident_water", metric="water_l", **WATER),
+    ZagonelResidentDescription(key="resident_energy", metric="energy_kwh", **ENERGY),
+    ZagonelResidentDescription(key="resident_cost", metric="cost", **MONEY),
+)
+
+
+def _slug(text: str) -> str:
+    return "".join(c if c.isalnum() else "_" for c in unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()).strip("_")
+
+
+class ZagonelResidentSensor(ZagonelEntity, SensorEntity):
+    """Monthly totals of one resident, read from the shower database."""
+
+    entity_description: ZagonelResidentDescription
+
+    def __init__(self, coordinator, shower: Shower, resident: str, description: ZagonelResidentDescription) -> None:
+        super().__init__(coordinator, shower, f"{description.key}_{_slug(resident)}")
+        self._attr_translation_key = description.key
+        self._attr_translation_placeholders = {"morador": resident}
+        self.entity_description = description
+        self.resident = resident
+
+    @property
+    def native_value(self) -> float | int:
+        value = self.shower.residents_month.get(self.resident, {}).get(self.entity_description.metric, 0)
+        return round(value, 4) if isinstance(value, float) else value
+
+    @property
+    def last_reset(self) -> datetime | None:
+        return self.shower.month_start if self.entity_description.state_class == SensorStateClass.TOTAL else None
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.coordinator.db_ok
 
 
 class ZagonelSensor(ZagonelEntity, SensorEntity):

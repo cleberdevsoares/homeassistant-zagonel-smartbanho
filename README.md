@@ -39,6 +39,26 @@ O custo é calculado com os preços de água e energia cadastrados no app.
 
 Se você usava a integração antiga `homeassistant-zagonel`, remova-a: ela usa um servidor que a Zagonel desativou.
 
+## Moradores e banco de dados (opcional)
+
+Em **Configurações → Dispositivos e serviços → Zagonel Smart Banho → Configurar** você informa:
+
+- **Moradores**, separados por vírgula (ex.: `Cleber, Fernanda, Caio, Bia`). "Visitante" entra sozinho.
+- **Banco MariaDB/MySQL** (servidor, porta, banco, usuário e senha). A integração cria a tabela `banhos` e grava cada banho com o morador e o humor. Se o banco cair, os banhos ficam numa fila local e são enviados quando ele voltar.
+
+Com o banco configurado aparecem sensores do mês **por morador** (banhos, tempo, água, energia e custo) e o sensor **Morador do último banho**.
+
+Para dizer quem está no banho, use a ação `zagonel_smartbanho.definir_morador`:
+
+```yaml
+action: zagonel_smartbanho.definir_morador
+data:
+  morador: Cleber
+  humor: bom
+```
+
+Durante o banho, o valor fica guardado e vai para o banho quando ele chega da nuvem. Com o chuveiro desligado, corrige o último banho.
+
 ## Automações
 
 Use a entidade **Chuveiro ligado** ou os eventos:

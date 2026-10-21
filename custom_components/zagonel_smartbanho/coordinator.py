@@ -7,15 +7,25 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
+import pymysql
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
-from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from .api import Measure, ZagonelApi, ZagonelAuthError, ZagonelError, raw_power_to_watts
 from .const import (
+    CONF_DB_HOST,
+    CONF_DB_NAME,
+    CONF_DB_PASSWORD,
+    CONF_DB_PORT,
+    CONF_DB_USER,
+    CONF_RESIDENTS,
+    DEFAULT_DB_PORT,
     DOMAIN,
     EVENT_SHOWER_FINISHED,
     EVENT_SHOWER_STARTED,
@@ -24,8 +34,13 @@ from .const import (
     MEASURE_FETCH_DELAYS,
     POLL_INTERVAL_MINUTES,
     RUNNING_TIMEOUT,
+    UNIDENTIFIED,
+    VISITOR,
 )
+from .db import BanhoDB, measure_row
 from .mqtt import ZagonelMqtt
+
+STORAGE_VERSION = 1
 
 
 @dataclass
@@ -60,6 +75,13 @@ class Shower:
     today: Totals = field(default_factory=Totals)
     month: Totals = field(default_factory=Totals)
     month_start: datetime | None = None
+    session_start: datetime | None = None
+    awaiting_measure: bool = False
+    pending_resident: str | None = None
+    pending_mood: str | None = None
+    last_resident: str | None = None
+    last_mood: str | None = None
+    residents_month: dict[str, dict[str, float]] = field(default_factory=dict)
 
     def live(self, key: str, scale: float = 1000) -> float | None:
         value = self.status.get(key)
@@ -74,8 +96,15 @@ class Shower:
         return raw_power_to_watts(self.status["Pw"], self.status.get("Vi") or 0)
 
 
+def parse_residents(raw: str | None) -> list[str]:
+    names = [n.strip() for n in (raw or "").split(",") if n.strip()]
+    if not any(n.casefold() == VISITOR.casefold() for n in names):
+        names.append(VISITOR)
+    return names
+
+
 class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
-    """Merges REST polling (history) and MQTT push (live state)."""
+    """Merges REST polling (history), MQTT push (live state) and the resident database."""
 
     config_entry: ConfigEntry
 
@@ -91,6 +120,11 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
         self.mqtt: ZagonelMqtt | None = None
         self.mqtt_connected = False
         self.showers: dict[str, Shower] = {}
+        self.residents = parse_residents(entry.options.get(CONF_RESIDENTS))
+        self.db: BanhoDB | None = None
+        self.db_ok = False
+        self._queue: list[dict[str, Any]] = []
+        self._store: Store = Store(hass, STORAGE_VERSION, f"{DOMAIN}_{entry.entry_id}_fila")
         self._off_timers: dict[str, CALLBACK_TYPE] = {}
         self._fetch_timers: list[CALLBACK_TYPE] = []
         self._live_poll: CALLBACK_TYPE | None = None
@@ -115,6 +149,21 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
             self._handle_mqtt_message,
             self._handle_mqtt_connection,
         )
+        options = self.config_entry.options
+        if options.get(CONF_DB_HOST):
+            self.db = BanhoDB(
+                options[CONF_DB_HOST],
+                int(options.get(CONF_DB_PORT) or DEFAULT_DB_PORT),
+                options[CONF_DB_NAME],
+                options[CONF_DB_USER],
+                options.get(CONF_DB_PASSWORD, ""),
+            )
+            self._queue = (await self._store.async_load()) or []
+            try:
+                await self.hass.async_add_executor_job(self.db.setup)
+                self.db_ok = True
+            except pymysql.Error as err:
+                LOGGER.warning("Banco de banhos indisponível (%s); os banhos ficam na fila local", err)
 
     async def async_start_push(self) -> None:
         if self.mqtt is not None:
@@ -159,16 +208,102 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
                 shower.month = Totals.from_measures(measures)
                 shower.today = Totals.from_measures([m for m in measures if m.start >= day_start])
                 shower.month_start = month_start
-                if previous is not None and newest is not None and newest.id != previous.id and newest.start > previous.start:
+                is_new = previous is not None and newest is not None and newest.id != previous.id and newest.start > previous.start
+                if is_new:
+                    self._claim_measure(shower, newest)
+                if self.db is not None:
+                    await self._async_store_measures(shower, measures)
+                if is_new:
                     self.hass.bus.async_fire(
                         EVENT_SHOWER_FINISHED,
-                        {"device_id": shower.device_id, "chuveiro": shower.name, **newest.as_event_data()},
+                        {
+                            "device_id": shower.device_id,
+                            "chuveiro": shower.name,
+                            "morador": shower.last_resident or UNIDENTIFIED,
+                            "humor": shower.last_mood,
+                            **newest.as_event_data(),
+                        },
                     )
         except ZagonelAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except ZagonelError as err:
             raise UpdateFailed(str(err)) from err
         return self.showers
+
+    @callback
+    def _claim_measure(self, shower: Shower, measure: Measure) -> None:
+        shower.last_resident = shower.pending_resident
+        shower.last_mood = shower.pending_mood
+        detected = shower.session_start if shower.awaiting_measure else None
+        shower.awaiting_measure = False
+        shower.pending_resident = None
+        shower.pending_mood = None
+        self._queue.append(
+            measure_row(measure, shower.device_id, shower.name, shower.last_resident, shower.last_mood, detected)
+        )
+        self._save_queue()
+
+    async def _async_store_measures(self, shower: Shower, measures: list[Measure]) -> None:
+        assert self.db is not None
+        rows = [measure_row(m, shower.device_id, shower.name) for m in measures]
+        queue = list(self._queue)
+        try:
+            if not self.db_ok:
+                await self.hass.async_add_executor_job(self.db.setup)
+                self.db_ok = True
+            for row in queue:
+                await self.hass.async_add_executor_job(self.db.upsert_with_resident, row)
+                self._queue.remove(row)
+            await self.hass.async_add_executor_job(self.db.insert_ignore, rows)
+            if shower.month_start is not None:
+                shower.residents_month = await self.hass.async_add_executor_job(
+                    self.db.month_totals, shower.device_id, shower.month_start
+                )
+        except pymysql.Error as err:
+            if self.db_ok:
+                LOGGER.warning("Falha ao gravar no banco de banhos (%s); mantendo %d na fila", err, len(self._queue))
+            self.db_ok = False
+        self._save_queue()
+
+    @callback
+    def _save_queue(self) -> None:
+        if self.db is not None:
+            self._store.async_delay_save(lambda: self._queue, 1)
+
+    def canonical_resident(self, name: str) -> str:
+        wanted = name.strip().casefold()
+        for resident in [*self.residents, UNIDENTIFIED]:
+            if resident.casefold() == wanted:
+                return resident
+        raise ServiceValidationError(
+            f"Morador '{name}' não está cadastrado. Cadastrados: {', '.join(self.residents)}"
+        )
+
+    async def async_set_resident(self, shower_id: str | None, resident: str | None, mood: str | None) -> None:
+        resident = self.canonical_resident(resident) if resident else None
+        mood = mood.strip().lower() if mood else None
+        targets = [self.showers[shower_id]] if shower_id in self.showers else list(self.showers.values())
+        for shower in targets:
+            if shower.running or shower.awaiting_measure:
+                shower.pending_resident = resident or shower.pending_resident
+                shower.pending_mood = mood or shower.pending_mood
+                continue
+            if shower.last_measure is None:
+                continue
+            shower.last_resident = resident or shower.last_resident or UNIDENTIFIED
+            shower.last_mood = mood or shower.last_mood
+            if self.db is not None:
+                try:
+                    await self.hass.async_add_executor_job(
+                        self.db.set_resident, shower.last_measure.id, shower.last_resident, shower.last_mood
+                    )
+                    if shower.month_start is not None:
+                        shower.residents_month = await self.hass.async_add_executor_job(
+                            self.db.month_totals, shower.device_id, shower.month_start
+                        )
+                except pymysql.Error as err:
+                    raise HomeAssistantError(f"Falha ao gravar no banco de banhos: {err}") from err
+        self.async_update_listeners()
 
     @callback
     def _handle_mqtt_connection(self, connected: bool) -> None:
@@ -197,6 +332,10 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
             cancel()
         if running and not shower.running:
             shower.running = True
+            shower.session_start = dt_util.utcnow()
+            shower.awaiting_measure = True
+            shower.pending_resident = None
+            shower.pending_mood = None
             self.hass.bus.async_fire(
                 EVENT_SHOWER_STARTED,
                 {

@@ -35,4 +35,16 @@ CONTROL_MODES = {0: "manual", 1: "automatic"}
 RGB_MODES = {0: "power", 1: "temperature", 2: "fixed"}
 PARENTAL_MODES = {0: "off", 1: "sound", 2: "shutdown", 3: "sound_and_shutdown"}
 
-PLATFORMS = ["binary_sensor", "button", "light", "number", "select", "sensor"]
+CONF_RESIDENTS = "moradores"
+CONF_DB_HOST = "db_host"
+CONF_DB_PORT = "db_port"
+CONF_DB_NAME = "db_name"
+CONF_DB_USER = "db_user"
+CONF_DB_PASSWORD = "db_password"
+DEFAULT_DB_PORT = 3306
+VISITOR = "Visitante"
+UNIDENTIFIED = "Não identificado"
+
+SERVICE_SET_RESIDENT = "definir_morador"
+
+PLATFORMS =["binary_sensor", "button", "light", "number", "select", "sensor"]

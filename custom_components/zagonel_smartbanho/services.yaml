@@ -1,0 +1,14 @@
+definir_morador:
+  fields:
+    morador:
+      example: Cleber
+      selector:
+        text:
+    humor:
+      example: bom
+      selector:
+        text:
+    device_id:
+      selector:
+        device:
+          integration: zagonel_smartbanho

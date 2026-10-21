@@ -148,6 +148,24 @@
       },
       "wifi_ssid": {
         "name": "Wi-Fi network"
+      },
+      "last_resident": {
+        "name": "Last shower resident"
+      },
+      "resident_count": {
+        "name": "Showers this month - {morador}"
+      },
+      "resident_duration": {
+        "name": "Shower time this month - {morador}"
+      },
+      "resident_water": {
+        "name": "Water this month - {morador}"
+      },
+      "resident_energy": {
+        "name": "Energy this month - {morador}"
+      },
+      "resident_cost": {
+        "name": "Cost this month - {morador}"
       }
     },
     "select": {
@@ -173,6 +191,45 @@
           "sound": "Sound alert",
           "shutdown": "Shut down",
           "sound_and_shutdown": "Sound and shut down"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Residents and database",
+        "description": "Residents separated by commas (Visitante is added automatically). The MariaDB/MySQL database is optional: with it every shower is stored with the resident.",
+        "data": {
+          "moradores": "Residents",
+          "db_host": "Database server (IP)",
+          "db_port": "Port",
+          "db_name": "Database name",
+          "db_user": "User",
+          "db_password": "Password (leave empty to keep)"
+        }
+      }
+    },
+    "error": {
+      "db_cannot_connect": "Could not connect to the database. Check server, user and password."
+    }
+  },
+  "services": {
+    "definir_morador": {
+      "name": "Set shower resident",
+      "description": "Tells who is showering (or who took the last shower) and optionally how the day was.",
+      "fields": {
+        "morador": {
+          "name": "Resident",
+          "description": "Name registered in the integration options, or Visitante."
+        },
+        "humor": {
+          "name": "Mood",
+          "description": "How the day was (bom, cansativo, ruim)."
+        },
+        "device_id": {
+          "name": "Shower",
+          "description": "Optional: the shower, if there is more than one."
         }
       }
     }
