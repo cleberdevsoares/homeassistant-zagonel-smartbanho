@@ -46,5 +46,8 @@ VISITOR = "Visitante"
 UNIDENTIFIED = "Não identificado"
 
 SERVICE_SET_RESIDENT = "definir_morador"
+SERVICE_IMPORT_HISTORY = "importar_historico"
+IMPORT_DELAY = 0.3
+IMPORT_BATCH = 50
 
 PLATFORMS =["binary_sensor", "button", "light", "number", "select", "sensor"]

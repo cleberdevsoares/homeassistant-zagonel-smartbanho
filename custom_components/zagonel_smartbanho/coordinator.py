@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -9,6 +10,7 @@ from typing import Any
 
 import pymysql
 
+from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError, ServiceValidationError
@@ -29,6 +31,8 @@ from .const import (
     DOMAIN,
     EVENT_SHOWER_FINISHED,
     EVENT_SHOWER_STARTED,
+    IMPORT_BATCH,
+    IMPORT_DELAY,
     LIVE_POLL_SECONDS,
     LOGGER,
     MEASURE_FETCH_DELAYS,
@@ -98,7 +102,7 @@ class Shower:
 
 def parse_residents(raw: str | None) -> list[str]:
     names = [n.strip() for n in (raw or "").split(",") if n.strip()]
-    if not any(n.casefold() == VISITOR.casefold() for n in names):
+    if names and not any(n.casefold() == VISITOR.casefold() for n in names):
         names.append(VISITOR)
     return names
 
@@ -128,6 +132,7 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
         self._off_timers: dict[str, CALLBACK_TYPE] = {}
         self._fetch_timers: list[CALLBACK_TYPE] = []
         self._live_poll: CALLBACK_TYPE | None = None
+        self.importing = False
 
     async def async_setup(self) -> None:
         try:
@@ -399,6 +404,62 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
     @callback
     def _scheduled_refresh(self, _now: datetime) -> None:
         self.hass.async_create_task(self.async_request_refresh())
+
+    @callback
+    def start_history_import(self) -> None:
+        if self.db is None:
+            raise HomeAssistantError("Configure o banco de banhos nas opções da integração antes de importar o histórico")
+        if self.importing:
+            raise HomeAssistantError("A importação do histórico já está em andamento")
+        self.importing = True
+        self.config_entry.async_create_background_task(
+            self.hass, self._async_import_history(), f"{DOMAIN}_importar_historico"
+        )
+
+    def _notify_import(self, message: str) -> None:
+        persistent_notification.async_create(
+            self.hass, message, title="Zagonel Smart Banho - histórico", notification_id=f"{DOMAIN}_importacao"
+        )
+
+    async def _async_import_history(self) -> None:
+        assert self.db is not None
+        imported = failed = 0
+        try:
+            for shower in self.showers.values():
+                ids = await self.api.get_measure_ids(shower.device_id)
+                known = await self.hass.async_add_executor_job(self.db.existing_ids, shower.device_id)
+                missing = [i for i in ids if i not in known]
+                self._notify_import(f"{shower.name}: {len(ids)} banhos na nuvem, {len(missing)} para importar. Isso pode levar alguns minutos.")
+                batch: list[dict[str, Any]] = []
+                for index, measure_id in enumerate(missing, 1):
+                    try:
+                        measure = await self.api.get_measure(measure_id)
+                    except ZagonelError as err:
+                        failed += 1
+                        LOGGER.debug("Banho %s não importado: %s", measure_id, err)
+                        measure = None
+                    if measure is not None:
+                        batch.append(measure_row(measure, shower.device_id, shower.name))
+                    if len(batch) >= IMPORT_BATCH or (index == len(missing) and batch):
+                        imported += await self.hass.async_add_executor_job(self.db.insert_ignore, batch)
+                        batch = []
+                    if index % 250 == 0:
+                        self._notify_import(f"{shower.name}: {index} de {len(missing)} banhos processados...")
+                    await asyncio.sleep(IMPORT_DELAY)
+                if shower.month_start is not None:
+                    shower.residents_month = await self.hass.async_add_executor_job(
+                        self.db.month_totals, shower.device_id, shower.month_start
+                    )
+            message = f"Importação concluída: {imported} banhos antigos gravados no banco."
+            if failed:
+                message += f" {failed} não puderam ser lidos da nuvem; rode a importação de novo para tentar outra vez."
+            self._notify_import(message)
+        except (ZagonelError, pymysql.Error) as err:
+            LOGGER.warning("Importação do histórico interrompida: %s", err)
+            self._notify_import(f"Importação interrompida ({err}). {imported} banhos foram gravados; rode de novo para continuar.")
+        finally:
+            self.importing = False
+            self.async_update_listeners()
 
     def can_send(self, shower: Shower) -> bool:
         return self.mqtt is not None and self.mqtt_connected and not shower.running

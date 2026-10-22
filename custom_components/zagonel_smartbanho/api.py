@@ -158,6 +158,17 @@ class ZagonelApi:
         data = await self._get(f"showers/user/{self.user_id}")
         return data.get("showers", [])
 
+    async def get_measure_ids(self, shower_id: str) -> list[str]:
+        for shower in await self.get_showers():
+            if (shower.get("_id") or shower.get("id")) == shower_id:
+                return [str(m) for m in shower.get("measures", [])]
+        return []
+
+    async def get_measure(self, measure_id: str) -> Measure | None:
+        data = await self._get(f"measures/{measure_id}")
+        raw = data.get("measure") if isinstance(data, dict) else None
+        return parse_measure(raw, self.energy_price, self.water_price) if raw else None
+
     async def get_measures_since(self, shower_id: str, since: datetime) -> list[Measure]:
         since_ms = int(since.timestamp() * 1000)
         data = await self._get(f"measures/shower/{shower_id}/{since_ms}")

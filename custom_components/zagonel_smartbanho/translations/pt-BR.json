@@ -236,6 +236,10 @@
           "description": "Opcional: corrige um banho específico (ex.: um banho da madrugada)."
         }
       }
+    },
+    "importar_historico": {
+      "name": "Importar histórico de banhos",
+      "description": "Busca na nuvem da Zagonel todos os banhos antigos que ainda não estão no banco e grava com os detalhes. Roda em segundo plano e avisa por notificação ao terminar."
     }
   }
 }

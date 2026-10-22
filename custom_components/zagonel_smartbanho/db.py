@@ -125,6 +125,11 @@ class BanhoDB:
                 (morador, humor or None, measure_id),
             )
 
+    def existing_ids(self, shower_id: str) -> set[str]:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT id FROM banhos WHERE chuveiro_id = %s", (shower_id,))
+            return {row[0] for row in cur.fetchall()}
+
     def resident_of(self, measure_id: str) -> tuple[str | None, str | None]:
         with self._connect() as conn, conn.cursor() as cur:
             cur.execute("SELECT morador, humor FROM banhos WHERE id = %s", (measure_id,))

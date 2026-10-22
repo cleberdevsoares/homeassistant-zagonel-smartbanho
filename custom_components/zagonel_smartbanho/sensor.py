@@ -219,6 +219,9 @@ async def async_setup_entry(
         for shower in coordinator.showers.values()
         for description in SENSORS
     ]
+    if not coordinator.residents:
+        async_add_entities(entities)
+        return
     for shower in coordinator.showers.values():
         entities.append(ZagonelSensor(coordinator, shower, LAST_RESIDENT))
         if coordinator.db is not None:

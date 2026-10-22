@@ -14,7 +14,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 
 from .api import ZagonelApi
-from .const import DOMAIN, PLATFORMS, SERVICE_SET_RESIDENT
+from .const import DOMAIN, PLATFORMS, SERVICE_IMPORT_HISTORY, SERVICE_SET_RESIDENT
 from .coordinator import ZagonelCoordinator
 
 type ZagonelConfigEntry = ConfigEntry[ZagonelCoordinator]
@@ -60,7 +60,15 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             if shower_id is None or shower_id in coordinator.showers:
                 await coordinator.async_set_resident(shower_id, resident, mood)
 
+    async def _import_history(call: ServiceCall) -> None:
+        entries = [e for e in hass.config_entries.async_entries(DOMAIN) if e.state is ConfigEntryState.LOADED]
+        if not entries:
+            raise ServiceValidationError("Integração Zagonel Smart Banho não carregada")
+        for entry in entries:
+            entry.runtime_data.start_history_import()
+
     hass.services.async_register(DOMAIN, SERVICE_SET_RESIDENT, _set_resident, schema=SET_RESIDENT_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_IMPORT_HISTORY, _import_history, schema=vol.Schema({}))
     return True
 
 

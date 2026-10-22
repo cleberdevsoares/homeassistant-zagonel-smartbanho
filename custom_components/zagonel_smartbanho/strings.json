@@ -236,6 +236,10 @@
           "description": "Optional: fixes a specific shower (e.g. a late-night one)."
         }
       }
+    },
+    "importar_historico": {
+      "name": "Import shower history",
+      "description": "Fetches every old shower from the Zagonel cloud that is not in the database yet and stores it with details. Runs in the background and reports with a notification."
     }
   }
 }

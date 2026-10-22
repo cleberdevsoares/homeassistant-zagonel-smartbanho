@@ -43,10 +43,10 @@ Se você usava a integração antiga `homeassistant-zagonel`, remova-a: ela usa 
 
 Em **Configurações → Dispositivos e serviços → Zagonel Smart Banho → Configurar** você informa:
 
-- **Moradores**, separados por vírgula (ex.: `Cleber, Fernanda, Caio, Bia`). "Visitante" entra sozinho.
+- **Moradores** (opcional), separados por vírgula (ex.: `Cleber, Fernanda, Caio, Bia`). "Visitante" entra sozinho.
 - **Banco MariaDB/MySQL** (servidor, porta, banco, usuário e senha). A integração cria a tabela `banhos` e grava cada banho com o morador e o humor. Se o banco cair, os banhos ficam numa fila local e são enviados quando ele voltar.
 
-Com o banco configurado aparecem sensores do mês **por morador** (banhos, tempo, água, energia e custo) e o sensor **Morador do último banho**.
+O banco grava todos os banhos mesmo sem moradores cadastrados: eles ficam como "Não identificado". Com moradores cadastrados e o banco configurado aparecem sensores do mês **por morador** (banhos, tempo, água, energia e custo) e o sensor **Morador do último banho**. Deixe o campo vazio se não quiser controlar quem tomou banho.
 
 Para dizer quem está no banho, use a ação `zagonel_smartbanho.definir_morador`:
 
@@ -58,6 +58,16 @@ data:
 ```
 
 Durante o banho, o valor fica guardado e vai para o banho quando ele chega da nuvem. Com o chuveiro desligado, corrige o último banho.
+
+### Importar o histórico antigo
+
+A integração grava os banhos a partir do mês atual. Para trazer **todos os banhos antigos** guardados na nuvem da Zagonel, rode uma vez (Ferramentas de desenvolvedor → Ações):
+
+```yaml
+action: zagonel_smartbanho.importar_historico
+```
+
+Ela roda em segundo plano, busca só o que ainda não está no banco e avisa no sino de notificações quando terminar. Com uns 2.000 banhos leva por volta de 15 a 20 minutos. Pode rodar de novo quando quiser; o que já foi importado é pulado. Os banhos antigos entram como "Não identificado" (dá para corrigir com `definir_morador` e `banho_id`).
 
 ## Automações
 

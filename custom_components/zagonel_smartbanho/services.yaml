@@ -16,3 +16,5 @@ definir_morador:
       selector:
         device:
           integration: zagonel_smartbanho
+
+importar_historico: {}
