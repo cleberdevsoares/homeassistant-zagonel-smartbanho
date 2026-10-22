@@ -5,6 +5,9 @@
     "@cleberdevsoares"
   ],
   "config_flow": true,
+  "dependencies": [
+    "recorder"
+  ],
   "documentation": "https://github.com/cleberdevsoares/homeassistant-zagonel-smartbanho",
   "integration_type": "hub",
   "iot_class": "cloud_push",
@@ -16,5 +19,5 @@
     "paho-mqtt>=1.6.1",
     "PyMySQL>=1.1.0"
   ],
-  "version": "1.2.0"
+  "version": "1.2.1"
 }

@@ -43,6 +43,7 @@ from .const import (
 )
 from .db import BanhoDB, measure_row
 from .mqtt import ZagonelMqtt
+from .statistics import BanhoStatistics
 
 STORAGE_VERSION = 1
 
@@ -133,8 +134,10 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
         self._fetch_timers: list[CALLBACK_TYPE] = []
         self._live_poll: CALLBACK_TYPE | None = None
         self.importing = False
+        self.stats = BanhoStatistics(hass, entry.entry_id)
 
     async def async_setup(self) -> None:
+        await self.stats.async_load()
         try:
             await self.api.login()
             raw_showers = await self.api.get_showers()
@@ -216,6 +219,7 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
                 is_new = previous is not None and newest is not None and newest.id != previous.id and newest.start > previous.start
                 if is_new:
                     self._claim_measure(shower, newest)
+                self._update_statistics(shower, measures)
                 if self.db is not None:
                     await self._async_store_measures(shower, measures)
                 if is_new:
@@ -273,6 +277,11 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
                 LOGGER.warning("Falha ao gravar no banco de banhos (%s); mantendo %d na fila", err, len(self._queue))
             self.db_ok = False
         self._save_queue()
+
+    @callback
+    def _update_statistics(self, shower: Shower, measures: list[Measure]) -> None:
+        if (since := self.stats.add(shower.device_id, measures)) is not None:
+            self.stats.publish(shower.device_id, shower.name, since)
 
     @callback
     def _save_queue(self) -> None:
@@ -407,8 +416,6 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
 
     @callback
     def start_history_import(self) -> None:
-        if self.db is None:
-            raise HomeAssistantError("Configure o banco de banhos nas opções da integração antes de importar o histórico")
         if self.importing:
             raise HomeAssistantError("A importação do histórico já está em andamento")
         self.importing = True
@@ -422,15 +429,20 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
         )
 
     async def _async_import_history(self) -> None:
-        assert self.db is not None
         imported = failed = 0
         try:
             for shower in self.showers.values():
                 ids = await self.api.get_measure_ids(shower.device_id)
-                known = await self.hass.async_add_executor_job(self.db.existing_ids, shower.device_id)
-                missing = [i for i in ids if i not in known]
+                in_stats = self.stats.known_ids(shower.device_id)
+                in_db = (
+                    await self.hass.async_add_executor_job(self.db.existing_ids, shower.device_id)
+                    if self.db is not None
+                    else None
+                )
+                missing = [i for i in ids if i not in in_stats or (in_db is not None and i not in in_db)]
                 self._notify_import(f"{shower.name}: {len(ids)} banhos na nuvem, {len(missing)} para importar. Isso pode levar alguns minutos.")
-                batch: list[dict[str, Any]] = []
+                measures: list[Measure] = []
+                rows: list[dict[str, Any]] = []
                 for index, measure_id in enumerate(missing, 1):
                     try:
                         measure = await self.api.get_measure(measure_id)
@@ -439,24 +451,29 @@ class ZagonelCoordinator(DataUpdateCoordinator[dict[str, Shower]]):
                         LOGGER.debug("Banho %s não importado: %s", measure_id, err)
                         measure = None
                     if measure is not None:
-                        batch.append(measure_row(measure, shower.device_id, shower.name))
-                    if len(batch) >= IMPORT_BATCH or (index == len(missing) and batch):
-                        imported += await self.hass.async_add_executor_job(self.db.insert_ignore, batch)
-                        batch = []
+                        measures.append(measure)
+                        imported += 1
+                        if in_db is not None and measure.id not in in_db:
+                            rows.append(measure_row(measure, shower.device_id, shower.name))
+                    if self.db is not None and (len(rows) >= IMPORT_BATCH or (index == len(missing) and rows)):
+                        await self.hass.async_add_executor_job(self.db.insert_ignore, rows)
+                        rows = []
                     if index % 250 == 0:
+                        self._update_statistics(shower, measures)
                         self._notify_import(f"{shower.name}: {index} de {len(missing)} banhos processados...")
                     await asyncio.sleep(IMPORT_DELAY)
-                if shower.month_start is not None:
+                self._update_statistics(shower, measures)
+                if self.db is not None and shower.month_start is not None:
                     shower.residents_month = await self.hass.async_add_executor_job(
                         self.db.month_totals, shower.device_id, shower.month_start
                     )
-            message = f"Importação concluída: {imported} banhos antigos gravados no banco."
+            message = f"Importação concluída: {imported} banhos antigos importados. Eles já aparecem no painel de Energia."
             if failed:
                 message += f" {failed} não puderam ser lidos da nuvem; rode a importação de novo para tentar outra vez."
             self._notify_import(message)
         except (ZagonelError, pymysql.Error) as err:
             LOGGER.warning("Importação do histórico interrompida: %s", err)
-            self._notify_import(f"Importação interrompida ({err}). {imported} banhos foram gravados; rode de novo para continuar.")
+            self._notify_import(f"Importação interrompida ({err}). {imported} banhos foram importados; rode de novo para continuar.")
         finally:
             self.importing = False
             self.async_update_listeners()

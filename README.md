@@ -59,15 +59,20 @@ data:
 
 Durante o banho, o valor fica guardado e vai para o banho quando ele chega da nuvem. Com o chuveiro desligado, corrige o último banho.
 
-### Importar o histórico antigo
+## Histórico de banhos e painel de Energia
 
-A integração grava os banhos a partir do mês atual. Para trazer **todos os banhos antigos** guardados na nuvem da Zagonel, rode uma vez (Ferramentas de desenvolvedor → Ações):
+A integração grava água (L), energia (kWh) e custo de cada banho nas **estatísticas do Home Assistant**, hora a hora, sem precisar de banco. Para ver no **painel de Energia**, em **Configurações → Painéis → Energia**:
+
+- **Consumo de água → Adicionar fonte de água:** escolha **"<chuveiro> água dos banhos"**.
+- **Dispositivos individuais → Adicionar dispositivo:** escolha **"<chuveiro> energia dos banhos"**.
+
+Para trazer **todos os banhos antigos** guardados na nuvem da Zagonel, rode uma vez em **Ferramentas → Ações**:
 
 ```yaml
 action: zagonel_smartbanho.importar_historico
 ```
 
-Ela roda em segundo plano, busca só o que ainda não está no banco e avisa no sino de notificações quando terminar. Com uns 2.000 banhos leva por volta de 15 a 20 minutos. Pode rodar de novo quando quiser; o que já foi importado é pulado. Os banhos antigos entram como "Não identificado" (dá para corrigir com `definir_morador` e `banho_id`).
+Ela roda em segundo plano e avisa no sino de notificações quando terminar. Com uns 2.000 banhos leva por volta de 15 a 20 minutos. Pode rodar de novo quando quiser; o que já foi importado é pulado. Com o banco configurado, os banhos antigos também vão para ele, como "Não identificado".
 
 ## Automações
 

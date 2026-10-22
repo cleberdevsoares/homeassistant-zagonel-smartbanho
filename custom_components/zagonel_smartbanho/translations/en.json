@@ -239,7 +239,7 @@
     },
     "importar_historico": {
       "name": "Import shower history",
-      "description": "Fetches every old shower from the Zagonel cloud that is not in the database yet and stores it with details. Runs in the background and reports with a notification."
+      "description": "Fetches every old shower from the Zagonel cloud into the Home Assistant statistics (Energy dashboard) and, if configured, into the database. Runs in the background and reports with a notification."
     }
   }
 }
